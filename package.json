@@ -24,7 +24,7 @@
     "@langchain/community": "0.0.30",
     "@langchain/openai": "0.0.14",
     "@next/third-parties": "^14.1.0",
-    "@svgr/webpack": "^6.5.1",
+    "@svgr/webpack": "^8.1.0",
     "@vercel/analytics": "^0.1.11",
     "@vercel/speed-insights": "^1.0.2",
     "axios": "^0.26.0",
