@@ -69,6 +69,7 @@ import {
   isVisionModel,
   compressImage,
   isFirefox,
+  isSupportRAGModel,
 } from "../utils";
 
 import dynamic from "next/dynamic";
@@ -116,6 +117,7 @@ import {
   SpeechApi,
   WebTranscriptionApi,
 } from "../utils/speech";
+import { FileInfo } from "../client/platforms/utils";
 
 const ttsPlayer = createTTSPlayer();
 
@@ -538,6 +540,8 @@ function useScrollToBottom() {
 export function ChatActions(props: {
   uploadImage: () => void;
   setAttachImages: (images: string[]) => void;
+  uploadFile: () => void;
+  setAttachFiles: (files: FileInfo[]) => void;
   setUploading: (uploading: boolean) => void;
   showPromptModal: () => void;
   scrollToBottom: () => void;
@@ -580,10 +584,19 @@ export function ChatActions(props: {
   );
   const [showModelSelector, setShowModelSelector] = useState(false);
   const [showUploadImage, setShowUploadImage] = useState(false);
+  const [showUploadFile, setShowUploadFile] = useState(false);
+
+  const accessStore = useAccessStore();
+  const isEnableRAG = useMemo(
+    () => accessStore.enableRAG(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
 
   useEffect(() => {
     const show = isVisionModel(currentModel);
     setShowUploadImage(show);
+    setShowUploadFile(isEnableRAG && !show && isSupportRAGModel(currentModel));
     if (!show) {
       props.setAttachImages([]);
       props.setUploading(false);
@@ -631,6 +644,14 @@ export function ChatActions(props: {
             onClick={props.uploadImage}
             text={Locale.Chat.InputActions.UploadImage}
             icon={props.uploading ? <LoadingButtonIcon /> : <ImageIcon />}
+          />
+        )}
+
+        {showUploadFile && (
+          <ChatAction
+            onClick={props.uploadFile}
+            text={Locale.Chat.InputActions.UploadFle}
+            icon={props.uploading ? <LoadingButtonIcon /> : <UploadIcon />}
           />
         )}
         <ChatAction
@@ -791,6 +812,14 @@ export function DeleteImageButton(props: { deleteImage: () => void }) {
   );
 }
 
+export function DeleteFileButton(props: { deleteFile: () => void }) {
+  return (
+    <div className={styles["delete-file"]} onClick={props.deleteFile}>
+      <DeleteIcon />
+    </div>
+  );
+}
+
 function _Chat() {
   type RenderMessage = ChatMessage & { preview?: boolean };
 
@@ -822,6 +851,7 @@ function _Chat() {
   const navigate = useNavigate();
   const [attachImages, setAttachImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [attachFiles, setAttachFiles] = useState<FileInfo[]>([]);
 
   // prompt hints
   const promptStore = usePromptStore();
@@ -927,9 +957,10 @@ function _Chat() {
     }
     setIsLoading(true);
     chatStore
-      .onUserInput(userInput, attachImages)
+      .onUserInput(userInput, attachImages, attachFiles)
       .then(() => setIsLoading(false));
     setAttachImages([]);
+    setAttachFiles([]);
     localStorage.setItem(LAST_INPUT_KEY, userInput);
     setUserInput("");
     setPromptHints([]);
@@ -1089,7 +1120,9 @@ function _Chat() {
     setIsLoading(true);
     const textContent = getMessageTextContent(userMessage);
     const images = getMessageImages(userMessage);
-    chatStore.onUserInput(textContent, images).then(() => setIsLoading(false));
+    chatStore
+      .onUserInput(textContent, images, userMessage.fileInfos)
+      .then(() => setIsLoading(false));
     inputRef.current?.focus();
   };
 
@@ -1156,34 +1189,36 @@ function _Chat() {
 
   // preview messages
   const renderMessages = useMemo(() => {
-    return context
-      .concat(session.messages as RenderMessage[])
-      .concat(
-        isLoading
-          ? [
-              {
-                ...createMessage({
-                  role: "assistant",
-                  content: "……",
-                }),
-                preview: true,
-              },
-            ]
-          : [],
-      )
-      .concat(
-        userInput.length > 0 && config.sendPreviewBubble
-          ? [
-              {
-                ...createMessage({
-                  role: "user",
-                  content: userInput,
-                }),
-                preview: true,
-              },
-            ]
-          : [],
-      );
+    return (
+      context
+        .concat(session.messages as RenderMessage[])
+        // .concat(
+        //   isLoading
+        //     ? [
+        //       {
+        //         ...createMessage({
+        //           role: "assistant",
+        //           content: "……",
+        //         }),
+        //         preview: true,
+        //       },
+        //     ]
+        //     : [],
+        // )
+        .concat(
+          userInput.length > 0 && config.sendPreviewBubble
+            ? [
+                {
+                  ...createMessage({
+                    role: "user",
+                    content: userInput,
+                  }),
+                  preview: true,
+                },
+              ]
+            : [],
+        )
+    );
   }, [
     config.sendPreviewBubble,
     context,
@@ -1401,6 +1436,53 @@ function _Chat() {
       images.splice(3, imagesLength - 3);
     }
     setAttachImages(images);
+  }
+
+  async function uploadFile() {
+    const uploadFiles: FileInfo[] = [];
+    uploadFiles.push(...attachFiles);
+
+    uploadFiles.push(
+      ...(await new Promise<FileInfo[]>((res, rej) => {
+        const fileInput = document.createElement("input");
+        fileInput.type = "file";
+        fileInput.accept = ".pdf,.txt,.md,.json,.csv,.docx,.srt,.mp3";
+        fileInput.multiple = true;
+        fileInput.onchange = (event: any) => {
+          setUploading(true);
+          const files = event.target.files;
+          const api = new ClientApi();
+          const fileDatas: FileInfo[] = [];
+          for (let i = 0; i < files.length; i++) {
+            const file = event.target.files[i];
+            api.file
+              .upload(file)
+              .then((fileInfo) => {
+                console.log(fileInfo);
+                fileDatas.push(fileInfo);
+                if (
+                  fileDatas.length === 3 ||
+                  fileDatas.length === files.length
+                ) {
+                  setUploading(false);
+                  res(fileDatas);
+                }
+              })
+              .catch((e) => {
+                setUploading(false);
+                rej(e);
+              });
+          }
+        };
+        fileInput.click();
+      })),
+    );
+
+    const filesLength = uploadFiles.length;
+    if (filesLength > 5) {
+      uploadFiles.splice(5, filesLength - 5);
+    }
+    setAttachFiles(uploadFiles);
   }
 
   return (
@@ -1661,6 +1743,29 @@ function _Chat() {
                       parentRef={scrollRef}
                       defaultShow={i >= messages.length - 6}
                     />
+                    {message.fileInfos && message.fileInfos.length > 0 && (
+                      <nav
+                        className={styles["chat-message-item-files"]}
+                        style={
+                          {
+                            "--file-count": message.fileInfos.length,
+                          } as React.CSSProperties
+                        }
+                      >
+                        {message.fileInfos.map((fileInfo, index) => {
+                          return (
+                            <a
+                              key={index}
+                              href={fileInfo.filePath}
+                              className={styles["chat-message-item-file"]}
+                              target="_blank"
+                            >
+                              {fileInfo.originalFilename}
+                            </a>
+                          );
+                        })}
+                      </nav>
+                    )}
                     {getMessageImages(message).length == 1 && (
                       <img
                         className={styles["chat-message-item-image"]}
@@ -1711,6 +1816,8 @@ function _Chat() {
         <ChatActions
           uploadImage={uploadImage}
           setAttachImages={setAttachImages}
+          uploadFile={uploadFile}
+          setAttachFiles={setAttachFiles}
           setUploading={setUploading}
           showPromptModal={() => setShowPromptModal(true)}
           scrollToBottom={scrollToBottom}
@@ -1730,7 +1837,7 @@ function _Chat() {
         />
         <label
           className={`${styles["chat-input-panel-inner"]} ${
-            attachImages.length != 0
+            attachImages.length != 0 || attachFiles.length != 0
               ? styles["chat-input-panel-inner-attach"]
               : ""
           }`}
@@ -1776,7 +1883,32 @@ function _Chat() {
               })}
             </div>
           )}
-
+          {attachFiles.length != 0 && (
+            <div className={styles["attach-files"]}>
+              {attachFiles.map((file, index) => {
+                return (
+                  <div
+                    key={index}
+                    className={styles["attach-file"]}
+                    title={file.originalFilename}
+                  >
+                    <div className={styles["attach-file-info"]}>
+                      {file.originalFilename}
+                    </div>
+                    <div className={styles["attach-file-mask"]}>
+                      <DeleteFileButton
+                        deleteFile={() => {
+                          setAttachFiles(
+                            attachFiles.filter((_, i) => i !== index),
+                          );
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
           {config.sttConfig.enable ? (
             <IconButton
               icon={<VoiceWhiteIcon />}
