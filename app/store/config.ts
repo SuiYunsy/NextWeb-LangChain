@@ -64,8 +64,8 @@ export const DEFAULT_CONFIG = {
     frequency_penalty: 0,
     sendMemory: true,
     historyMessageCount: 6,
-    compressMessageLengthThreshold: 3072,
-    enableInjectSystemPrompts: false,
+    compressMessageLengthThreshold: 3600,
+    enableInjectSystemPrompts: true,
     template: DEFAULT_INPUT_TEMPLATE,
   },
 
@@ -76,7 +76,7 @@ export const DEFAULT_CONFIG = {
   },
 
   ttsConfig: {
-    enable: false,
+    enable: true,
     autoplay: false,
     model: DEFAULT_TTS_MODEL,
     voice: DEFAULT_TTS_VOICE,
