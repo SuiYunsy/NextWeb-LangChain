@@ -198,7 +198,7 @@ function getOpenAIBaseUrl(reqBaseUrl: string | undefined) {
 }
 
 export const POST = handle;
-
+export const maxDuration = 60;
 export const runtime = "nodejs";
 export const preferredRegion = [
   "arn1",

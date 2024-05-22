@@ -45,6 +45,6 @@ async function handle(
 }
 
 export const GET = handle;
-
+export const maxDuration = 60;
 export const runtime = "nodejs";
 export const revalidate = 0;
