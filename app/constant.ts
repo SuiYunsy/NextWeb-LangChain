@@ -158,7 +158,6 @@ export const DEFAULT_STT_ENGINE = "WebAPI";
 export const DEFAULT_STT_ENGINES = ["WebAPI", "OpenAI Whisper"];
 export const FIREFOX_DEFAULT_STT_ENGINE = "OpenAI Whisper";
 const openaiModels = [
-  "deepseek-chat",
   "gpt-3.5-turbo",
   "gpt-3.5-turbo-0125",
   "gpt-4",
