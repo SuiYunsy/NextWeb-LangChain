@@ -117,7 +117,7 @@ export const getServerSideConfig = () => {
 
     isGoogle,
     googleApiKey: getApiKey(process.env.GOOGLE_API_KEY),
-    googleUrl: process.env.GEMINI_BASE_URL ?? process.env.GOOGLE_URL,
+    googleUrl: process.env.GOOGLE_URL,
 
     isAnthropic,
     anthropicApiKey: getApiKey(process.env.ANTHROPIC_API_KEY),
@@ -151,5 +151,7 @@ export const getServerSideConfig = () => {
     ragChunkOverlap: process.env.RAG_CHUNK_OVERLAP ?? "200",
     ragReturnCount: process.env.RAG_RETURN_COUNT ?? "4",
     allowedWebDevEndpoints,
+
+    edgeTTSVoiceName: process.env.EDGE_TTS_VOICE_NAME ?? "zh-CN-YunxiNeural",
   };
 };
