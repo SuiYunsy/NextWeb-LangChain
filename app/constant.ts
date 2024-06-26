@@ -163,7 +163,6 @@ const openaiModels = [
   "gpt-3.5-turbo-0125",
   "gpt-4",
   "gpt-4-0125-preview",
-  "gpt-4-vision-preview",
   "gpt-4-turbo",
   "gpt-4o",
 ];
@@ -216,6 +215,7 @@ export const internalAllowedWebDavEndpoints = [
   "https://dav.dropdav.com/",
   "https://dav.box.com/dav",
   "https://nanao.teracloud.jp/dav/",
+  "https://bora.teracloud.jp/dav/",
   "https://webdav.4shared.com/",
   "https://dav.idrivesync.com",
   "https://webdav.yandex.com",
